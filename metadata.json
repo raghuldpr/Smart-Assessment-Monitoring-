@@ -1,0 +1,6 @@
+{
+  "name": "Smart Internal Assessment and Assignment Monitoring System",
+  "description": "Full-stack college academic management web application for faculty, students, and administrators to manage assignments, submissions, internal assessments, marks, attendance, and performance reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
