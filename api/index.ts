@@ -1,7 +1,6 @@
-import { createExpressApp } from '../server.js';
+import app, { ensureDatabaseReady } from '../server/app.js';
 
 export default async function handler(req: any, res: any) {
-  const app = await createExpressApp();
+  await ensureDatabaseReady();
   return app(req, res);
 }
-

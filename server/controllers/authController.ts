@@ -116,6 +116,13 @@ export class AuthController {
         return;
       }
 
+      // Safe check: ensure initial college data exists if database was fresh
+      try {
+        await seedCollegeSampleData();
+      } catch (seedErr: any) {
+        console.warn('Seed check during login:', seedErr?.message);
+      }
+
       const userRow = await userRepo.findByEmail(email);
       if (!userRow) {
         res.status(401).json({
@@ -125,7 +132,13 @@ export class AuthController {
         return;
       }
 
-      const isMatch = await bcrypt.compare(password, userRow.password_hash);
+      let isMatch = false;
+      try {
+        isMatch = await bcrypt.compare(password, userRow.password_hash);
+      } catch (bcryptErr) {
+        console.error('Bcrypt compare error:', bcryptErr);
+      }
+
       if (!isMatch) {
         res.status(401).json({
           success: false,
@@ -140,7 +153,7 @@ export class AuthController {
         email: userEntity.email,
         role: userEntity.role,
         name: userEntity.name,
-        department: userEntity.department,
+        department: userEntity.department || 'General',
       });
 
       res.status(200).json({
@@ -155,7 +168,7 @@ export class AuthController {
       console.error('Login error:', err);
       res.status(500).json({
         success: false,
-        message: 'An error occurred during sign in. Please try again.',
+        message: err.message || 'An error occurred during sign in. Please try again.',
       });
     }
   }
@@ -164,8 +177,12 @@ export class AuthController {
     try {
       const { role, email } = req.body;
 
-      // Ensure base sample data is seeded
-      await seedCollegeSampleData();
+      // Ensure base sample data is seeded (fail-safe)
+      try {
+        await seedCollegeSampleData();
+      } catch (seedErr: any) {
+        console.warn('Seed check during demo login:', seedErr?.message);
+      }
 
       let targetEmail = email;
       if (!targetEmail) {
@@ -179,9 +196,16 @@ export class AuthController {
         }
       }
 
-      const userRow = await userRepo.findByEmail(targetEmail);
+      let userRow = await userRepo.findByEmail(targetEmail);
       if (!userRow) {
-        res.status(404).json({ success: false, message: `Demo user with email ${targetEmail} not found.` });
+        // Fallback: search by role in case email was modified
+        const targetRole = (role || (targetEmail.includes('faculty') ? 'FACULTY' : 'STUDENT')).toUpperCase();
+        const roleUsers = await userRepo.findAll({ role: targetRole });
+        userRow = roleUsers[0] || null;
+      }
+
+      if (!userRow) {
+        res.status(404).json({ success: false, message: `Account with email ${targetEmail} not found.` });
         return;
       }
 
@@ -191,7 +215,7 @@ export class AuthController {
         email: userEntity.email,
         role: userEntity.role,
         name: userEntity.name,
-        department: userEntity.department,
+        department: userEntity.department || 'General',
       });
 
       res.status(200).json({
